@@ -1,0 +1,68 @@
+name: Render Deployment
+
+on:
+  push:
+    branches: [development, CI/CD]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.JS ${{matrix.node-version}}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{matrix.node-version}}
+
+      - name: Yarn install, build
+        run: |
+          yarn install
+          yarn build
+        env:
+          DBHOST: ${{ secrets.DBHOST }}
+          TOKEN_SECRET: ${{ secrets.TOKEN_SECRET }}
+          DB_NAME: ${{secrets.DB_NAME}}
+          DB_USER: ${{secrets.DB_USER}}
+          DB_PASSWORD: ${{secrets.DB_PASSWORD}}
+          DB_HOST: ${{secrets.DB_HOST}}
+          DB_PORT: ${{secrets.DB_PORT}}
+          CLOUDNAME: ${{secrets.CLOUDNAME}}
+          CLOUDAPIKEY: ${{secrets.CLOUDAPIKEY}}
+          CLOUDAPISECRET: ${{secrets.CLOUDAPISECRET}}
+          PASSPORT_SECRET: ${{secrets.PASSPORT_SECRET}}
+          JWT_SECRET: ${{secrets.JWT_SECRET}}
+          AUTH_EMAIL: ${{secrets.AUTH_EMAIL}}
+          SMTP_HOST: ${{secrets.SMTP_HOST}}
+          SMTP_USERNAME: ${{secrets.SMTP_USERNAME}}
+          SMTP_PASSWORD: ${{secrets.SMTP_PASSWORD}}
+
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Render Deploy
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_TOKEN }}
+          branch: CI/CD
+          dockerfilePath: Dockerfile
+          dockerContext: .
+          envVarsToMask: DBHOST,TOKEN_SECRET,DB_NAME,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,CLOUDNAME,CLOUDAPIKEY,CLOUDAPISECRET,PASSPORT_SECRET,JWT_SECRET,AUTH_EMAIL,SMTP_HOST,SMTP_USERNAME,SMTP_PASSWORD
+          startCommand: yarn start
